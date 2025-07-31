@@ -1,22 +1,28 @@
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 import CoinCard from './components/CoinCard';
-const API_URL =
-  'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&sparkline=false';
+import LimitSelector from './components/LimitSelector';
+import FilterInput from './components/FilterInput';
+const API_URL = import.meta.env.VITE_API_URL;
+import SortSelector from './components/SortSelector';
 
 const App = () => {
   const [coins, setCoins] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [limit, setLimit] = useState(10);
+  const [filter, setFilter] = useState('');
+  const [sortBy, setSortBy] = useState('market_cap_desc');
 
   useEffect(() => {
-    const fethcCoins = async () => {
+    const fetchCoins = async () => {
       try {
-        const res = await fetch(API_URL);
+        const fullUrl = `${API_URL}&order=market_cap_desc&per_page=${limit}&page=1&sparkline=false`;
+        const res = await fetch(fullUrl);
+
         if (!res.ok) {
           throw new Error('Network response was not ok');
         }
         const data = await res.json();
-        console.log(data);
         setCoins(data);
       } catch (err) {
         setError(err.message);
@@ -24,18 +30,52 @@ const App = () => {
         setLoading(false);
       }
     };
-    fethcCoins();
-  }, []);
+    fetchCoins();
+  }, [limit]);
+
+  const fileteredCoins = coins
+    .filter(coin => {
+      return (
+        coin.name.toLowerCase().includes(filter.toLowerCase()) ||
+        coin.symbol.toLowerCase().includes(filter.toLowerCase())
+      );
+    })
+    .slice()
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'market_cap_desc':
+          return b.market_cap - a.market_cap;
+        case 'market_cap_asc':
+          return a.market_cap - b.market_cap;
+        case 'price_desc':
+          return b.current_price - a.current_price;
+        case 'price_asc':
+          return a.current_price - b.current_price;
+        case 'change_desc':
+          return b.price_change_percentage_24h - a.price_change_percentage_24h;
+        case 'change_asc':
+          return (
+            a.price_change_percentage_24hc - b.cprice_change_percentage_24h
+          );
+      }
+    });
+
   return (
     <div>
       <h1> Crypto Dash</h1>
       {loading && <p>Loading...</p>}
       {error && <div className='error'>Error: {error}</div>}
+      <div className='top-controls'>
+        <FilterInput filter={filter} onFilterChange={setFilter} />
+        <LimitSelector limit={limit} onLimitChange={setLimit} />
+        <SortSelector sortBy={sortBy} onSortChange={setSortBy} />
+      </div>
+
       {!loading && !error && (
         <main className='grid'>
-          {coins.map(coin => (
-            <CoinCard key={coin.id} coin={coin} />
-          ))}
+          {fileteredCoins.length > 0
+            ? fileteredCoins.map(coin => <CoinCard key={coin.id} coin={coin} />)
+            : 'No Coins match'}
         </main>
       )}
     </div>
